@@ -117,8 +117,8 @@
   <input type="text" id="lote" placeholder="Ex: A123B45">
 
   <label>Código de Barras:</label>
-  <button id="btn-scan">📷 Ler Código de Barras</button>
-  <video id="preview"></video>
+  <button id="btn-scan">📷 Iniciar Scanner</button>
+  <video id="preview" autoplay muted playsinline></video>
 
   <label>Data de Validade:</label>
   <input type="date" id="validade">
@@ -165,7 +165,6 @@
         const diffDias = Math.ceil((dataVal - hoje) / (1000 * 60 * 60 * 24));
         if (diffDias <= 5) classe = "alerta";
       }
-
       tr.className = classe;
       tr.innerHTML = `
         <td>${p.nome}</td>
@@ -208,44 +207,45 @@
       ["Nome", "Lote", "Código", "Validade", "Quantidade"],
       ...produtos.map(p => [p.nome, p.lote, p.codigo, p.validade, p.quantidade])
     ];
-
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Produtos");
     XLSX.writeFile(wb, "SuperNovaTerraNova_Validades.xlsx");
   }
 
-  document.getElementById("btn-scan").addEventListener("click", () => {
+  document.getElementById("btn-scan").addEventListener("click", async () => {
     const video = document.getElementById("preview");
-    if (!scanning) {
-      codeReader
-        .listVideoInputDevices()
-        .then(videoInputDevices => {
-          // escolher a câmera traseira
-          const backCam = videoInputDevices.find(device =>
-            device.label.toLowerCase().includes("back")
-          ) || videoInputDevices[0];
 
-          video.style.display = "block";
-          scanning = true;
-
-          codeReader.decodeOnceFromVideoDevice(backCam.deviceId, video)
-            .then(result => {
-              codigoAtual = result.text;
-              alert("Código lido: " + codigoAtual);
-              codeReader.reset();
-              video.style.display = "none";
-              scanning = false;
-            })
-            .catch(err => {
-              alert("Erro ao ler o código: " + err);
-              scanning = false;
-            });
-        })
-        .catch(err => alert("Câmera não encontrada: " + err));
-    } else {
+    if (scanning) {
       codeReader.reset();
       video.style.display = "none";
+      scanning = false;
+      return;
+    }
+
+    try {
+      const devices = await codeReader.listVideoInputDevices();
+      const backCam = devices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("traseira")) || devices[devices.length - 1];
+
+      if (!backCam) {
+        alert("Câmera traseira não encontrada!");
+        return;
+      }
+
+      scanning = true;
+      video.style.display = "block";
+
+      codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
+        if (result) {
+          codigoAtual = result.text;
+          alert("Código detectado: " + codigoAtual);
+          codeReader.reset();
+          video.style.display = "none";
+          scanning = false;
+        }
+      });
+    } catch (e) {
+      alert("Erro ao acessar câmera: " + e);
       scanning = false;
     }
   });
