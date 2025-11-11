@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Nova Terra Nova - Controle de Produtos</title>
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --card: #111827;
+    --text: #e0f7ff;
+    --accent: #00ffff;
+    --muted: #6b7280;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: "Poppins", sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  h1 {
+    margin-top: 20px;
+    color: var(--accent);
+    text-align: center;
+  }
+
+  .container {
+    background-color: var(--card);
+    border-radius: 15px;
+    padding: 20px;
+    width: 90%;
+    max-width: 600px;
+    margin-top: 20px;
+    box-shadow: 0 0 10px #00ffff55;
+  }
+
+  label {
+    display: block;
+    margin-top: 10px;
+  }
+
+  input, select, button {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    margin-top: 5px;
+    font-size: 15px;
+  }
+
+  input, select {
+    background-color: #1f2937;
+    color: var(--text);
+  }
+
+  button {
+    background-color: var(--accent);
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+
+  th, td {
+    border: 1px solid #1f2937;
+    padding: 8px;
+    text-align: center;
+  }
+
+  th {
+    background-color: var(--accent);
+    color: #000;
+  }
+
+  video {
+    width: 100%;
+    border-radius: 10px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .btn-export {
+    background-color: #00ffffaa;
+    color: #000;
+    font-weight: bold;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Super Nova Terra Nova</h1>
+
+<div class="container">
+  <label>Código de Barras:</label>
+  <input type="text" id="codigo" placeholder="Escaneie ou digite o código">
+  <button id="btn-scan">📷 Ler Código de Barras</button>
+  <video id="preview"></video>
+
+  <label>Descrição:</label>
+  <input type="text" id="descricao" placeholder="Nome do produto">
+
+  <label>Quantidade:</label>
+  <input type="number" id="quantidade" placeholder="Ex: 5">
+
+  <label>Data de Validade:</label>
+  <input type="date" id="validade">
+
+  <label>Setor:</label>
+  <input type="text" id="setor" placeholder="Ex: Frios, Bebidas...">
+
+  <button onclick="adicionarProduto()">Adicionar Produto</button>
+  <button class="btn-export" onclick="exportarExcel()">Exportar para Excel</button>
+
+  <table id="tabela">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Descrição</th>
+        <th>Qtd</th>
+        <th>Validade</th>
+        <th>Setor</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
+<script>
+  let produtos = JSON.parse(localStorage.getItem("produtos")) || [];
+  let codeReader = new ZXing.BrowserMultiFormatReader();
+  let scanning = false;
+
+  function atualizarTabela() {
+    const tbody = document.querySelector("#tabela tbody");
+    tbody.innerHTML = "";
+    produtos.forEach((p, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.codigo}</td>
+        <td>${p.descricao}</td>
+        <td>${p.quantidade}</td>
+        <td>${p.validade}</td>
+        <td>${p.setor}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    localStorage.setItem("produtos", JSON.stringify(produtos));
+  }
+
+  function adicionarProduto() {
+    const codigo = document.getElementById("codigo").value.trim();
+    const descricao = document.getElementById("descricao").value.trim();
+    const quantidade = document.getElementById("quantidade").value.trim();
+    const validade = document.getElementById("validade").value;
+    const setor = document.getElementById("setor").value.trim();
+
+    if (!codigo || !descricao) {
+      alert("Preencha ao menos o código e a descrição!");
+      return;
+    }
+
+    produtos.push({ codigo, descricao, quantidade, validade, setor });
+    atualizarTabela();
+
+    document.getElementById("codigo").value = "";
+    document.getElementById("descricao").value = "";
+    document.getElementById("quantidade").value = "";
+    document.getElementById("validade").value = "";
+    document.getElementById("setor").value = "";
+  }
+
+  function exportarExcel() {
+    const ws_data = [
+      ["Super Nova Terra Nova - Controle de Produtos"],
+      [],
+      ["Código", "Descrição", "Quantidade", "Validade", "Setor"],
+      ...produtos.map(p => [p.codigo, p.descricao, p.quantidade, p.validade, p.setor])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+    XLSX.writeFile(wb, "SuperNovaTerraNova_Produtos.xlsx");
+  }
+
+  // Função do scanner de código de barras
+  document.getElementById("btn-scan").addEventListener("click", () => {
+    const video = document.getElementById("preview");
+    if (!scanning) {
+      codeReader
+        .listVideoInputDevices()
+        .then(videoInputDevices => {
+          const selectedDeviceId = videoInputDevices[0].deviceId;
+          video.style.display = "block";
+          scanning = true;
+          codeReader.decodeOnceFromVideoDevice(selectedDeviceId, video)
+            .then(result => {
+              document.getElementById("codigo").value = result.text;
+              codeReader.reset();
+              video.style.display = "none";
+              scanning = false;
+            })
+            .catch(err => {
+              alert("Erro ao ler o código: " + err);
+              scanning = false;
+            });
+        })
+        .catch(err => alert("Câmera não encontrada: " + err));
+    } else {
+      codeReader.reset();
+      document.getElementById("preview").style.display = "none";
+      scanning = false;
+    }
+  });
+
+  atualizarTabela();
+</script>
+</body>
+</html>
