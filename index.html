@@ -1,257 +1,115 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Super Nova Terra Nova - Controle de Validades</title>
-<style>
-  :root {
-    --bg: #0b0f1a;
-    --card: #111827;
-    --text: #e0f7ff;
-    --accent: #00ffff;
-    --alert: #ff3b3b;
-  }
-
-  body {
-    background-color: var(--bg);
-    color: var(--text);
-    font-family: "Poppins", sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  h1 {
-    margin-top: 20px;
-    color: var(--accent);
-    text-align: center;
-  }
-
-  .container {
-    background-color: var(--card);
-    border-radius: 15px;
-    padding: 20px;
-    width: 90%;
-    max-width: 600px;
-    margin-top: 20px;
-    box-shadow: 0 0 10px #00ffff55;
-  }
-
-  label {
-    display: block;
-    margin-top: 10px;
-  }
-
-  input, button {
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
-    margin-top: 5px;
-    font-size: 15px;
-  }
-
-  input {
-    background-color: #1f2937;
-    color: var(--text);
-  }
-
-  button {
-    background-color: var(--accent);
-    color: #000;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 15px;
-  }
-
-  .btn-export {
-    background-color: #00ffffaa;
-    color: #000;
-    font-weight: bold;
-    margin-top: 15px;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-  }
-
-  th, td {
-    border: 1px solid #1f2937;
-    padding: 8px;
-    text-align: center;
-  }
-
-  th {
-    background-color: var(--accent);
-    color: #000;
-  }
-
-  tr.alerta td {
-    background-color: rgba(255, 59, 59, 0.2);
-    color: var(--alert);
-    font-weight: bold;
-  }
-
-  video {
-    width: 100%;
-    border-radius: 10px;
-    margin-top: 10px;
-    display: none;
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leitor de Código de Barras - MJ Tecnologi 2025</title>
+  <style>
+    :root {
+      --bg: #0a0f1f;
+      --card: #141923;
+      --text: #e6eef6;
+      --accent: #00d4ff;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+    }
+    h2 {
+      color: var(--accent);
+      margin-top: 20px;
+    }
+    #reader {
+      width: 90%;
+      max-width: 400px;
+      margin-top: 20px;
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #codigo {
+      margin-top: 20px;
+      padding: 12px;
+      width: 80%;
+      max-width: 300px;
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: var(--text);
+      text-align: center;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: var(--accent);
+      border: none;
+      color: var(--bg);
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+  </style>
 </head>
 <body>
+  <h2>Scanner de Código de Barras</h2>
+  <div id="reader"></div>
+  <input id="codigo" type="text" placeholder="Código lido aparecerá aqui" readonly />
 
-<h1>Super Nova Terra Nova</h1>
+  <button onclick="pararLeitura()">Parar Scanner</button>
 
-<div class="container">
-  <label>Nome do Produto:</label>
-  <input type="text" id="nome" placeholder="Ex: Leite Integral 1L">
+  <!-- Biblioteca do leitor -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script>
+    let html5QrCode;
 
-  <label>Lote:</label>
-  <input type="text" id="lote" placeholder="Ex: A123B45">
+    async function iniciarLeitura() {
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras && cameras.length) {
+        // Pega a câmera traseira, se existir
+        const camera = cameras.find(c => c.label.toLowerCase().includes('back')) || cameras[0];
+        html5QrCode = new Html5Qrcode("reader");
 
-  <label>Código de Barras:</label>
-  <button id="btn-scan">📷 Iniciar Scanner</button>
-  <video id="preview" autoplay muted playsinline></video>
-
-  <label>Data de Validade:</label>
-  <input type="date" id="validade">
-
-  <label>Quantidade:</label>
-  <input type="number" id="quantidade" placeholder="Ex: 10">
-
-  <button onclick="adicionarProduto()">Adicionar Produto</button>
-  <button class="btn-export" onclick="exportarExcel()">Exportar para Excel</button>
-
-  <table id="tabela">
-    <thead>
-      <tr>
-        <th>Nome</th>
-        <th>Lote</th>
-        <th>Código</th>
-        <th>Validade</th>
-        <th>Qtd</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/@zxing/library@latest"></script>
-
-<script>
-  let produtos = JSON.parse(localStorage.getItem("produtos")) || [];
-  let codeReader = new ZXing.BrowserMultiFormatReader();
-  let scanning = false;
-  let codigoAtual = "";
-
-  function atualizarTabela() {
-    const tbody = document.querySelector("#tabela tbody");
-    tbody.innerHTML = "";
-    const hoje = new Date();
-
-    produtos.forEach(p => {
-      const tr = document.createElement("tr");
-      let classe = "";
-      if (p.validade) {
-        const dataVal = new Date(p.validade);
-        const diffDias = Math.ceil((dataVal - hoje) / (1000 * 60 * 60 * 24));
-        if (diffDias <= 5) classe = "alerta";
+        html5QrCode.start(
+          camera.id,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 150 },
+          },
+          (decodedText) => {
+            document.getElementById("codigo").value = decodedText;
+            // Para automaticamente após leitura
+            pararLeitura();
+          },
+          (errorMessage) => {
+            console.log("Erro:", errorMessage);
+          }
+        ).catch(err => {
+          alert("Erro ao iniciar câmera: " + err);
+        });
+      } else {
+        alert("Nenhuma câmera detectada no dispositivo.");
       }
-      tr.className = classe;
-      tr.innerHTML = `
-        <td>${p.nome}</td>
-        <td>${p.lote}</td>
-        <td>${p.codigo}</td>
-        <td>${p.validade}</td>
-        <td>${p.quantidade}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    localStorage.setItem("produtos", JSON.stringify(produtos));
-  }
-
-  function adicionarProduto() {
-    const nome = document.getElementById("nome").value.trim();
-    const lote = document.getElementById("lote").value.trim();
-    const validade = document.getElementById("validade").value;
-    const quantidade = document.getElementById("quantidade").value.trim();
-
-    if (!nome || !codigoAtual || !validade) {
-      alert("Preencha o nome, leia o código e selecione a validade!");
-      return;
     }
 
-    produtos.push({ nome, lote, codigo: codigoAtual, validade, quantidade });
-    atualizarTabela();
-
-    document.getElementById("nome").value = "";
-    document.getElementById("lote").value = "";
-    document.getElementById("validade").value = "";
-    document.getElementById("quantidade").value = "";
-    codigoAtual = "";
-  }
-
-  function exportarExcel() {
-    const ws_data = [
-      ["Super Nova Terra Nova - Controle de Validades"],
-      [],
-      ["Nome", "Lote", "Código", "Validade", "Quantidade"],
-      ...produtos.map(p => [p.nome, p.lote, p.codigo, p.validade, p.quantidade])
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
-    XLSX.writeFile(wb, "SuperNovaTerraNova_Validades.xlsx");
-  }
-
-  document.getElementById("btn-scan").addEventListener("click", async () => {
-    const video = document.getElementById("preview");
-
-    if (scanning) {
-      codeReader.reset();
-      video.style.display = "none";
-      scanning = false;
-      return;
-    }
-
-    try {
-      const devices = await codeReader.listVideoInputDevices();
-      const backCam = devices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("traseira")) || devices[devices.length - 1];
-
-      if (!backCam) {
-        alert("Câmera traseira não encontrada!");
-        return;
+    function pararLeitura() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          console.log("Scanner parado.");
+        }).catch(err => console.log("Erro ao parar scanner:", err));
       }
-
-      scanning = true;
-      video.style.display = "block";
-
-      codeReader.decodeFromVideoDevice(backCam.deviceId, video, (result, err) => {
-        if (result) {
-          codigoAtual = result.text;
-          alert("Código detectado: " + codigoAtual);
-          codeReader.reset();
-          video.style.display = "none";
-          scanning = false;
-        }
-      });
-    } catch (e) {
-      alert("Erro ao acessar câmera: " + e);
-      scanning = false;
     }
-  });
 
-  atualizarTabela();
-</script>
-
+    // Inicia automaticamente ao carregar
+    window.onload = iniciarLeitura;
+  </script>
 </body>
 </html>
