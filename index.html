@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Super Nova Terra Nova - Controle de Produtos</title>
+<title>Super Nova Terra Nova - Controle de Validades</title>
 <style>
   :root {
     --bg: #0b0f1a;
     --card: #111827;
     --text: #e0f7ff;
     --accent: #00ffff;
-    --muted: #6b7280;
+    --alert: #ff3b3b;
   }
 
   body {
@@ -45,7 +45,7 @@
     margin-top: 10px;
   }
 
-  input, select, button {
+  input, button {
     width: 100%;
     padding: 10px;
     border-radius: 8px;
@@ -54,7 +54,7 @@
     font-size: 15px;
   }
 
-  input, select {
+  input {
     background-color: #1f2937;
     color: var(--text);
   }
@@ -64,6 +64,13 @@
     color: #000;
     font-weight: bold;
     cursor: pointer;
+    margin-top: 15px;
+  }
+
+  .btn-export {
+    background-color: #00ffffaa;
+    color: #000;
+    font-weight: bold;
     margin-top: 15px;
   }
 
@@ -84,18 +91,17 @@
     color: #000;
   }
 
+  tr.alerta td {
+    background-color: rgba(255, 59, 59, 0.2);
+    color: var(--alert);
+    font-weight: bold;
+  }
+
   video {
     width: 100%;
     border-radius: 10px;
     margin-top: 10px;
     display: none;
-  }
-
-  .btn-export {
-    background-color: #00ffffaa;
-    color: #000;
-    font-weight: bold;
-    margin-top: 20px;
   }
 </style>
 </head>
@@ -104,22 +110,21 @@
 <h1>Super Nova Terra Nova</h1>
 
 <div class="container">
+  <label>Nome do Produto:</label>
+  <input type="text" id="nome" placeholder="Ex: Leite Integral 1L">
+
+  <label>Lote:</label>
+  <input type="text" id="lote" placeholder="Ex: A123B45">
+
   <label>Código de Barras:</label>
-  <input type="text" id="codigo" placeholder="Escaneie ou digite o código">
   <button id="btn-scan">📷 Ler Código de Barras</button>
   <video id="preview"></video>
-
-  <label>Descrição:</label>
-  <input type="text" id="descricao" placeholder="Nome do produto">
-
-  <label>Quantidade:</label>
-  <input type="number" id="quantidade" placeholder="Ex: 5">
 
   <label>Data de Validade:</label>
   <input type="date" id="validade">
 
-  <label>Setor:</label>
-  <input type="text" id="setor" placeholder="Ex: Frios, Bebidas...">
+  <label>Quantidade:</label>
+  <input type="number" id="quantidade" placeholder="Ex: 10">
 
   <button onclick="adicionarProduto()">Adicionar Produto</button>
   <button class="btn-export" onclick="exportarExcel()">Exportar para Excel</button>
@@ -127,11 +132,11 @@
   <table id="tabela">
     <thead>
       <tr>
+        <th>Nome</th>
+        <th>Lote</th>
         <th>Código</th>
-        <th>Descrição</th>
-        <th>Qtd</th>
         <th>Validade</th>
-        <th>Setor</th>
+        <th>Qtd</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -145,73 +150,89 @@
   let produtos = JSON.parse(localStorage.getItem("produtos")) || [];
   let codeReader = new ZXing.BrowserMultiFormatReader();
   let scanning = false;
+  let codigoAtual = "";
 
   function atualizarTabela() {
     const tbody = document.querySelector("#tabela tbody");
     tbody.innerHTML = "";
-    produtos.forEach((p, i) => {
+    const hoje = new Date();
+
+    produtos.forEach(p => {
       const tr = document.createElement("tr");
+      let classe = "";
+      if (p.validade) {
+        const dataVal = new Date(p.validade);
+        const diffDias = Math.ceil((dataVal - hoje) / (1000 * 60 * 60 * 24));
+        if (diffDias <= 5) classe = "alerta";
+      }
+
+      tr.className = classe;
       tr.innerHTML = `
+        <td>${p.nome}</td>
+        <td>${p.lote}</td>
         <td>${p.codigo}</td>
-        <td>${p.descricao}</td>
-        <td>${p.quantidade}</td>
         <td>${p.validade}</td>
-        <td>${p.setor}</td>
+        <td>${p.quantidade}</td>
       `;
       tbody.appendChild(tr);
     });
+
     localStorage.setItem("produtos", JSON.stringify(produtos));
   }
 
   function adicionarProduto() {
-    const codigo = document.getElementById("codigo").value.trim();
-    const descricao = document.getElementById("descricao").value.trim();
-    const quantidade = document.getElementById("quantidade").value.trim();
+    const nome = document.getElementById("nome").value.trim();
+    const lote = document.getElementById("lote").value.trim();
     const validade = document.getElementById("validade").value;
-    const setor = document.getElementById("setor").value.trim();
+    const quantidade = document.getElementById("quantidade").value.trim();
 
-    if (!codigo || !descricao) {
-      alert("Preencha ao menos o código e a descrição!");
+    if (!nome || !codigoAtual || !validade) {
+      alert("Preencha o nome, leia o código e selecione a validade!");
       return;
     }
 
-    produtos.push({ codigo, descricao, quantidade, validade, setor });
+    produtos.push({ nome, lote, codigo: codigoAtual, validade, quantidade });
     atualizarTabela();
 
-    document.getElementById("codigo").value = "";
-    document.getElementById("descricao").value = "";
-    document.getElementById("quantidade").value = "";
+    document.getElementById("nome").value = "";
+    document.getElementById("lote").value = "";
     document.getElementById("validade").value = "";
-    document.getElementById("setor").value = "";
+    document.getElementById("quantidade").value = "";
+    codigoAtual = "";
   }
 
   function exportarExcel() {
     const ws_data = [
-      ["Super Nova Terra Nova - Controle de Produtos"],
+      ["Super Nova Terra Nova - Controle de Validades"],
       [],
-      ["Código", "Descrição", "Quantidade", "Validade", "Setor"],
-      ...produtos.map(p => [p.codigo, p.descricao, p.quantidade, p.validade, p.setor])
+      ["Nome", "Lote", "Código", "Validade", "Quantidade"],
+      ...produtos.map(p => [p.nome, p.lote, p.codigo, p.validade, p.quantidade])
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Produtos");
-    XLSX.writeFile(wb, "SuperNovaTerraNova_Produtos.xlsx");
+    XLSX.writeFile(wb, "SuperNovaTerraNova_Validades.xlsx");
   }
 
-  // Função do scanner de código de barras
   document.getElementById("btn-scan").addEventListener("click", () => {
     const video = document.getElementById("preview");
     if (!scanning) {
       codeReader
         .listVideoInputDevices()
         .then(videoInputDevices => {
-          const selectedDeviceId = videoInputDevices[0].deviceId;
+          // escolher a câmera traseira
+          const backCam = videoInputDevices.find(device =>
+            device.label.toLowerCase().includes("back")
+          ) || videoInputDevices[0];
+
           video.style.display = "block";
           scanning = true;
-          codeReader.decodeOnceFromVideoDevice(selectedDeviceId, video)
+
+          codeReader.decodeOnceFromVideoDevice(backCam.deviceId, video)
             .then(result => {
-              document.getElementById("codigo").value = result.text;
+              codigoAtual = result.text;
+              alert("Código lido: " + codigoAtual);
               codeReader.reset();
               video.style.display = "none";
               scanning = false;
@@ -224,12 +245,13 @@
         .catch(err => alert("Câmera não encontrada: " + err));
     } else {
       codeReader.reset();
-      document.getElementById("preview").style.display = "none";
+      video.style.display = "none";
       scanning = false;
     }
   });
 
   atualizarTabela();
 </script>
+
 </body>
 </html>
